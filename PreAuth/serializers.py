@@ -125,7 +125,6 @@ class ExcelFileSerializer(serializers.Serializer):
 
 
 class ClaimFormSerializer(serializers.ModelSerializer):
-    # Radiology =  serializers.ListField(child=serializers.FileField(allow_empty_file=True, use_url=False),write_only=True , required = False)
     class Meta:
         model =  ClaimManagement
         fields = ( 'CaseNumberID','CaseNumber','AdmitCase_ClinicalSheet' , 'ICP' , 'MedicationChart' ,'InitialSheet' ,
@@ -138,9 +137,4 @@ class ClaimFormSerializer(serializers.ModelSerializer):
 class DumpExcelSerializer(serializers.Serializer):
     excel_file = serializers.FileField(required=True)
 
-    def validate(self, data):
-        if data['excel_file'] == None or data['excel_file'] == "":
-            raise ValidationError('excel_file can not be empty')
-        
-        return data
    

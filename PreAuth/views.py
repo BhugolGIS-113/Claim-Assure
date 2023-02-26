@@ -130,11 +130,15 @@ class PreAuthFormView(generics.GenericAPIView):
                     for image in images:
                         name = image.name
                         if image.size > 400 * 1024:
-                            return Response({'status': 'error', 'message': 'Each Image size should be less than 499 KB - {name}'.format(name=name)}, status=400)
+                            return Response({'status': 'error',
+                                             'message': 'Each Image size should be less than 499 KB - {name}'.format(name=name)}, 
+                                             status=400)
+                        
                     pdf = PDFGenerator(images, PreAuthID, field)
                     files[field] = SimpleUploadedFile(
                         f"{PreAuthID}_{date}_{field}.zip", pdf, content_type='application/zip'
                     )
+
             radiology_files = request.FILES.getlist('radiologyReport')
             if radiology_files:
                 zip_buffer = io.BytesIO()
@@ -523,6 +527,62 @@ class LinkingCaseNumberView(generics.GenericAPIView):
 #                 date=date)
 #             return response
 
+class ExcelMergeAPIView(generics.GenericAPIView):
+    serializer_class = ExcelFileSerializer
+    parser_classes = [MultiPartParser]
+
+    def post(self, request, format=None):
+        serializer = ExcelFileSerializer(data=request.data)
+        if serializer.is_valid():
+            # Load the Excel files
+            excel_files = []
+            for file in request.FILES.getlist('file'):
+                excel_files.append(xlrd.open_workbook(
+                    file_contents=file.read()))
+            if len(excel_files) == 1:
+                return Response({'status': 'error',
+                                'message': "There is only one Excel file ,\
+                                         To Merge the Excel's at least two or more files will be needed."})
+            # Merge the Excel files
+
+            merged_workbook = openpyxl.Workbook()
+            merged_sheet = merged_workbook.active
+            merged_sheet.title = 'Merged Sheet'
+            header_added = False  # To keep track of whether the header has been added
+            row_index_merged = 1  # To keep track of the row index in the merged sheet
+            for excel_file in excel_files:
+                for sheet in excel_file.sheets():
+                    for row_index in range(sheet.nrows):
+                        # If the sheet is the first sheet, and header has not been added yet
+                        if not header_added and row_index == 2:
+                            # Add the headers to the merged sheet
+                            for col_index in range(sheet.ncols):
+                                column_letter = get_column_letter(col_index+1)
+                                merged_sheet[column_letter+str(row_index_merged)] = sheet.cell_value(
+                                    row_index, col_index)
+                                merged_sheet[column_letter +
+                                             str(row_index_merged)].font = Font(bold=True)
+                            row_index_merged += 1
+                            header_added = True  # Set header_added to True so that it is not added again
+                        elif row_index > 2:  # If the row is after the header row
+                            for col_index in range(sheet.ncols):
+                                column_letter = get_column_letter(col_index+1)
+                                merged_sheet[column_letter+str(row_index_merged)] = sheet.cell_value(
+                                    row_index, col_index)
+                            row_index_merged += 1
+
+            # Write the merged Excel file to a BytesIO object
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = 'attachment; filename=MERGE_DUMP.xlsx'
+            merged_workbook.save(response)
+
+            return response
+        else:
+            key, value = list(serializer.errors.items())[0]
+            error_message = key+" , "+value[0]
+            return Response({'message': error_message,
+                            'status': 'error'})
 
 class ClaimFormView(generics.GenericAPIView):
     parser_classes = [MultiPartParser, FormParser]
@@ -618,61 +678,6 @@ class ClaimFormView(generics.GenericAPIView):
 
 #this is for .xls excel files 
 
-class ExcelMergeAPIView(generics.GenericAPIView):
-    serializer_class = ExcelFileSerializer
-    parser_classes = [MultiPartParser]
-
-    def post(self, request, format=None):
-        serializer = ExcelFileSerializer(data=request.data)
-        if serializer.is_valid():
-            # Load the Excel files
-            excel_files = []
-            for file in request.FILES.getlist('file'):
-                excel_files.append(xlrd.open_workbook(
-                    file_contents=file.read()))
-            if len(excel_files) == 1:
-                return Response({'status': 'error',
-                                'message': "There is only one Excel file , To Merge the Excel's at least two or more files will be needed."})
-            # Merge the Excel files
-
-            merged_workbook = openpyxl.Workbook()
-            merged_sheet = merged_workbook.active
-            merged_sheet.title = 'Merged Sheet'
-            header_added = False  # To keep track of whether the header has been added
-            row_index_merged = 1  # To keep track of the row index in the merged sheet
-            for excel_file in excel_files:
-                for sheet in excel_file.sheets():
-                    for row_index in range(sheet.nrows):
-                        # If the sheet is the first sheet, and header has not been added yet
-                        if not header_added and row_index == 2:
-                            # Add the headers to the merged sheet
-                            for col_index in range(sheet.ncols):
-                                column_letter = get_column_letter(col_index+1)
-                                merged_sheet[column_letter+str(row_index_merged)] = sheet.cell_value(
-                                    row_index, col_index)
-                                merged_sheet[column_letter +
-                                             str(row_index_merged)].font = Font(bold=True)
-                            row_index_merged += 1
-                            header_added = True  # Set header_added to True so that it is not added again
-                        elif row_index > 2:  # If the row is after the header row
-                            for col_index in range(sheet.ncols):
-                                column_letter = get_column_letter(col_index+1)
-                                merged_sheet[column_letter+str(row_index_merged)] = sheet.cell_value(
-                                    row_index, col_index)
-                            row_index_merged += 1
-
-            # Write the merged Excel file to a BytesIO object
-            response = HttpResponse(
-                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-            response['Content-Disposition'] = 'attachment; filename=MERGE_DUMP.xlsx'
-            merged_workbook.save(response)
-
-            return response
-        else:
-            key, value = list(serializer.errors.items())[0]
-            error_message = key+" , "+value[0]
-            return Response({'message': error_message,
-                            'status': 'error'})
 
 import xlrd
 
