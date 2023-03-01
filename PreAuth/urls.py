@@ -23,6 +23,14 @@ urlpatterns = [
     path('ClaimForm', ClaimFormView.as_view(), name='Post Claim Form'),
     path('MergeExcelFiles', ExcelMergeAPIView.as_view(), name='Merge Excel Files '),
     path('ExcelUpload', DumpExcelInsert.as_view(), name='Excel Upload in database'),
+
+
+
+    
+    path('UploadShapeFile', UploadShapeFile.as_view(), name=' Upload ZIP file in database'),
+    path('GetShapeFiles', ViewUploadedShapeFile.as_view(), name=' Get ZIP file'),
+    path('delete/shapeFolder/<str:folder_name>', DeleteShapeFolder.as_view()),
+  
     
 
 

@@ -2,6 +2,9 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from Authentications.models import User
 from django.utils.translation import gettext_lazy as _ 
+from ClaimAssurance import settings
+import os
+from rest_framework import request
 # Create your models here.
 
 def validate_length(value):
@@ -170,4 +173,9 @@ class DumpExcel(models.Model):
         
     #     super(DumpExcel, self).save(*args, **kwargs)
 
+
+
+class ShapeFiles(models.Model):
+    user = models.ForeignKey(User, related_name='shape_files', on_delete=models.CASCADE)
+    folder_name = models.CharField(max_length=255, blank=True, null=True)
 

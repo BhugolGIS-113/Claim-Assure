@@ -25,6 +25,7 @@ from django.shortcuts import get_object_or_404
 import pandas as pd
 import io
 from rest_framework import status
+import shutil
 
 
 def PDFGenerator(images, PreAuthID, name):
@@ -116,10 +117,10 @@ class PreAuthFormView(generics.GenericAPIView):
             # Genrating Sequential Preauth ID
             Last_ID = PreAuthDocument.objects.order_by('PreAuthID').last()
             if Last_ID:
-                PreAuthID = 'PRE{:05}'.format(
+                PreAuthID = 'PRE{:03}'.format(
                     int(Last_ID.PreAuthID[3:]) + 1)
             else:
-                PreAuthID = 'PRE00001'
+                PreAuthID = 'PRE001'
 
             date = datetime.datetime.today().date()
             files = {}
@@ -190,6 +191,7 @@ class PreAuthFormView(generics.GenericAPIView):
 
 class FilterbyNHPMID(generics.GenericAPIView):
     serializer_class = PersonalInfoSerializer
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, NHPMID):
         PersonalInformation = PersonalInfo.objects.filter(
@@ -212,6 +214,7 @@ class FilterbyNHPMID(generics.GenericAPIView):
 
 class SearchFilterbyPreAuthID(generics.ListAPIView):
     serializer_class = PreAuthSearchDocumentSerializer
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, PreAuthID):
         PreAuthData = PreAuthDocument.objects.filter(
@@ -235,6 +238,7 @@ class SearchFilterbyPreAuthID(generics.ListAPIView):
 
 class SearchFilterbyCaseNumber(generics.GenericAPIView):
     serializer_class = PreAuthSearchDocumentSerializer
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, CaseNumber, **kwargs):
         preauth_documents = PreAuthDocument.objects.filter(
@@ -269,10 +273,10 @@ class ExistingPreAuthFormView(generics.GenericAPIView):
             data = serializer.validated_data
             Last_ID = PreAuthDocument.objects.order_by('PreAuthID').last()
             if Last_ID:
-                PreAuthID = 'PRE{:05}'.format(
+                PreAuthID = 'PRE{:03}'.format(
                     int(Last_ID.PreAuthID[3:]) + 1)
             else:
-                PreAuthID = 'PRE00001'
+                PreAuthID = 'PRE001'
 
             # Extract files from request and generate PDFs
             files = {}
@@ -282,7 +286,9 @@ class ExistingPreAuthFormView(generics.GenericAPIView):
                     for image in images:
                         name = image.name
                         if image.size > 400 * 1024:
-                            return Response({'status': 'error', 'message': 'Each Image size should be less than 499 KB - {name}'.format(name=name)}, status=400)
+                            return Response({'status': 'error', 
+                                             'message': 'Each Image size should be less than 499 KB - {name}'.format(name=name)},
+                                            status=400)
                     pdf = PDFGenerator(images, PreAuthID, field)
                     files[field] = SimpleUploadedFile(
                         f"{PreAuthID}_{datetime.datetime.today().date()}_{field}.zip",
@@ -424,13 +430,12 @@ class DeletePreAUth(APIView):
 	permission_classes=[IsAuthenticated]
 	def delete(self,request,PreAuthID,*args,**kwargs):
 		try:
-			instance=PreAuthDocument.objects.get(PreAuthID=PreAuthID)
+			instance=PreAuthDocument.objects.get(PreAuthID=PreAuthID).delete()
 		except PreAuthDocument.DoesNotExist as e:
 			return Response({
 				"message":"PreAuth ID Is not Found",
 				"status":"error" 
 				}, status=400)
-		instance.delete()
 
 		return Response({
 			"message":"PreAuth data deleted successfully",
@@ -457,12 +462,16 @@ class DownloadPreAuthZipFile(APIView):
 
         for field_name in ['justification', 'on_BedPhotograph', 'admitCaseSheet', 'labReport', 'radiologyReport']:
             field = getattr(pre_auth_document, field_name)
-            if field and field.file:
-                with zipfile.ZipFile(field.file, 'r') as zip_ref:
-                    for zip_info in zip_ref.infolist():
-                        zip_info.filename = os.path.basename(zip_info.filename)
-                        zip_file.writestr(zip_info, zip_ref.read(zip_info.filename))
-
+            try:
+                if field and field.file:
+                    with zipfile.ZipFile(field.file, 'r') as zip_ref:
+                        for zip_info in zip_ref.infolist():
+                            zip_info.filename = os.path.basename(zip_info.filename)
+                            zip_file.writestr(zip_info, zip_ref.read(zip_info.filename))
+            except:
+                return Response({'status': 'error',
+                                  'message': 'The file you are attempting to download does not exist on server'} , status=400)
+          
         zip_file.close()
         return response
 
@@ -719,3 +728,87 @@ class DumpExcelInsert(generics.GenericAPIView):
         return Response({"status": "Success", "message": "Successfully Uploaded."})
         # else:
             # return  Response({"status": "error", "Message": "excel_file can not be blank"} , status = 400)
+
+
+
+        
+class UploadShapeFile(generics.GenericAPIView):
+
+    serializer_class = UploadShapeFileSerializer 
+    permission_classes = [IsAuthenticated]    
+    parser_classes = [MultiPartParser]
+
+    def get_new_media_path(self, media_path):
+        index = 1
+        while os.path.exists(f"{media_path}_{index}"):
+            index += 1
+        return f"{media_path}_{index}"
+
+    def post(self, request, format=None):
+        if 'shape_file' not in request.FILES:
+            return Response({"status": "error", 
+                             "message": "No file uploaded."} , status=400)
+        
+    
+        zip_file = request.FILES['shape_file']
+        zip_filename = zip_file.name
+        media_path = os.path.join(settings.MEDIA_ROOT/'ShapeFIles', zip_filename[:-4])
+
+        # Check if media folder for extracted files already exists
+        while os.path.exists(media_path):
+            choice = request.data.get('choice')
+            if choice == 'O':
+                shutil.rmtree(media_path)
+            elif choice == 'N':
+                media_path = self.get_new_media_path(media_path)
+            else:
+                return Response({'message': 'Invalid choice. Please select O or N.'})
+
+        # Extract the ZIP file to the media folder
+        with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+            zip_ref.extractall(media_path)
+        folder_name = media_path.split('\\')[-1]
+        
+        data = storeshapefilePathSerializer(data = {'folder_name' : folder_name})
+        if data.is_valid():
+            data.save(user = request.user)
+
+        return Response({'status':'success',
+                        'message': f'{zip_filename} uploaded and extracted successfully.'})
+    
+
+
+class ViewUploadedShapeFile(APIView):
+    def get(self, request):
+        try:
+            instance = ShapeFiles.objects.all()
+        except ShapeFiles.DoesNotExist as e:
+            return Response({"status": "error", "message":'No data found'},status=400)
+        
+        serializer = GetShapeFileSerializer(instance , many = True).data
+        return Response({'status':'success',
+                        'message': 'data fetched successfully',
+                        'data': serializer})
+
+
+class DeleteShapeFolder(generics.DestroyAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, folder_name, format=None):
+        media_path = os.path.join(settings.MEDIA_ROOT, 'ShapeFIles', folder_name)
+        folder_name= media_path.split('\\')[-1]
+        if os.path.exists(media_path):
+            shutil.rmtree(media_path)
+            ShapeFiles.objects.filter(folder_name=folder_name).delete()
+            return Response({
+                'status': 'success' , 
+                'message': 'Folder deleted successfully.'})
+        else:
+            return Response({
+                'status': 'error' , 
+                'message': f'{folder_name} - This folder not found.'} , status=400)
+        
+        
+
+
+
