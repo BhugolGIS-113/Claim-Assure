@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'Authentications',
     'PreAuth',
+    'ClaimManagement',
 ]
 
 MIDDLEWARE = [

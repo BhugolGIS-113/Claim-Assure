@@ -17,14 +17,6 @@ urlpatterns = [
     re_path(r'SearchbyNHPMID/(?P<NHPMID>.+)$', FilterbyNHPMID.as_view(), name='Search by NHPMID'), 
     re_path(r'^SearchbyPreAuthID/(?P<PreAuthID>.+)$', SearchFilterbyPreAuthID.as_view(), name='Search by PreAuth-ID'),
     re_path(r'^SearchbyCaseNumber/(?P<CaseNumber>.+)$', SearchFilterbyCaseNumber.as_view() , name = 'Search by CaseNumber'),
-    
-
-    # Claim Form & Excel Upload Url's
-    path('ClaimForm', ClaimFormView.as_view(), name='Post Claim Form'),
-    path('MergeExcelFiles', ExcelMergeAPIView.as_view(), name='Merge Excel Files '),
-    path('ExcelUpload', DumpExcelInsert.as_view(), name='Excel Upload in database'),
-
-
 
     
     path('UploadShapeFile', UploadShapeFile.as_view(), name=' Upload ZIP file in database'),

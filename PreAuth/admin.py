@@ -4,6 +4,5 @@ from .models import *
 admin.site.register(PersonalInfo)
 admin.site.register(PreAuthDocument)
 admin.site.register(PreAuthLinkCaseNumber)
-admin.site.register(ClaimManagement)
-admin.site.register(DumpExcel)
+
 admin.site.register(ShapeFiles)
