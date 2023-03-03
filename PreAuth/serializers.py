@@ -89,11 +89,18 @@ class CaseNumberLinkingSerializer(serializers.ModelSerializer):
 class PreAuthSearchDocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = PreAuthDocument
-        fields = ('PersonalInfoID' , 'PreAuthID' , 'dateOfAdmission',
+        fields = ( 'PersonalInfoID' , 'PreAuthID' , 'dateOfAdmission',
                   'dateOfPreAuth' , 'hospitalName' , 'hospitalCode' , 'justification',
                   'on_BedPhotograph' , 'admitCaseSheet' , 'labReport' , 'radiologyReport' )
 
 
+
+class PreAuthSearcViewhDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PreAuthDocument
+        fields = ('id' , 'PersonalInfoID' , 'PreAuthID' , 'dateOfAdmission',
+                  'dateOfPreAuth' , 'hospitalName' , 'hospitalCode' , 'justification',
+                  'on_BedPhotograph' , 'admitCaseSheet' , 'labReport' , 'radiologyReport' )
 class PreAuthSearchDocumentUpdateSerializer(serializers.Serializer):
     dateOfAdmission = serializers.DateTimeField(required = True)
     dateOfPreAuth = serializers.DateTimeField(required = True)
@@ -119,7 +126,9 @@ class PreAuthLinkCaseNumberSerialzier(serializers.ModelSerializer):
         model = PreAuthLinkCaseNumber
         fields = '__all__'
 
-
+class UploadShapeFileSerializer(serializers.Serializer):
+    shape_file = serializers.FileField(required = True)
+    choice = serializers.CharField(max_length=50 , required = True)
 
 class GetShapeFileSerializer(serializers.ModelSerializer):
     class Meta:

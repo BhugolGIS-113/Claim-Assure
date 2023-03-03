@@ -14,7 +14,7 @@ class UserRegister(generics.GenericAPIView):
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
-        if serializer.is_valid(raise_exception=True):
+        if serializer.is_valid():
             try:
                 user = serializer.save()
                 Claim_Assure_Admin = Group.objects.get(
@@ -52,32 +52,39 @@ class LoginView(generics.GenericAPIView):
     def post(self, request):
         try:
             serializer = LoginSerializer(data=request.data)
-            serializer.is_valid()
-            user_data = serializer.validated_data
-            user = RegisterSerializer(user_data).data
-            if serializer is not None:
-                # Check if a token already exists for this user
-                try:
-                    token = AuthToken.objects.filter(user=serializer.validated_data)
-                    # If a token already exists, invalidate it
-                    token.delete()
-                except AuthToken.DoesNotExist:
-                    pass
-                
-                # Create a new token for the current user and device
-                _, token = AuthToken.objects.create(serializer.validated_data)
-                return Response({
-                    'Message': 'Login successfull',
-                    'Token': token,
-                    'status': 'success',
-                    'user': user_data.email,
-                    'username': user_data.username,
-                    'Group': user_data.groups.values_list("name", flat=True)[0]
-                }, status=200)
+            if serializer.is_valid():
+                user_data = serializer.validated_data
+                print(user_data)
+                user = RegisterSerializer(user_data).data
+                if serializer is not None:
+                    # Check if a token already exists for this user
+                    try:
+                        token = AuthToken.objects.filter(user=serializer.validated_data)
+                        # If a token already exists, invalidate it
+                        token.delete()
+                    except AuthToken.DoesNotExist:
+                        pass
+                    
+                    # Create a new token for the current user and device
+                    _, token = AuthToken.objects.create(serializer.validated_data)
+                    return Response({
+                        'Message': 'Login successfull',
+                        'Token': token,
+                        'status': 'success',
+                        'user': user_data.email,
+                        'username': user_data.username,
+                        'Group': user_data.groups.values_list("name", flat=True)[0]
+                    }, status=200)
+            else:
+                print(serializer.errors)
+                key, value = list(serializer.errors.items())[0]
+                error_message = key+" , "+value[0]
+                return Response({'Message': error_message, 
+                                'status' : 'error'}, status=400)
 
         except:
             return Response({
-                'Message': 'Email Or Password Invalid',
+                'Message': 'Email or Password is Invalid',
                 'status': 'failed'
             }, status=400)
 

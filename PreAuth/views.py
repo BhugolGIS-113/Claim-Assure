@@ -195,7 +195,7 @@ class FilterbyNHPMID(generics.GenericAPIView):
         PreAuthData = PreAuthDocument.objects.filter(
             PersonalInfoID=PersonalInformation.id)
 
-        PreAuthDataserializer = PreAuthSearchDocumentSerializer(
+        PreAuthDataserializer = PreAuthSearcViewhDocumentSerializer(
             PreAuthData, many=True).data
         serializer = PersonalInfoSerializer(PersonalInformation).data
         return Response({'status': 'success',
@@ -480,11 +480,9 @@ class LinkingCaseNumberView(generics.GenericAPIView):
             error_message = key+" , "+value[0]
             return Response({'message': error_message,
                             'status': 'error'})
-
         
 class UploadShapeFile(generics.GenericAPIView):
-
-    # serializer_class = UploadShapeFileSerializer 
+    serializer_class = UploadShapeFileSerializer 
     permission_classes = [IsAuthenticated]    
     parser_classes = [MultiPartParser]
 
@@ -507,7 +505,7 @@ class UploadShapeFile(generics.GenericAPIView):
             return Response({"status": "error" ,
                              "message" : f" {zip_filename} - Uploaded File is not a zip file" })
 
-        media_path = os.path.join(settings.MEDIA_ROOT/'ShapeFIles', zip_filename[:-4])
+        media_path = os.path.join(settings.MEDIA_ROOT/'ShapeFiles', zip_filename[:-4])
 
         # Check if media folder for extracted files already exists
         while os.path.exists(media_path):
@@ -517,7 +515,7 @@ class UploadShapeFile(generics.GenericAPIView):
             elif choice == 'New':
                 media_path = self.get_new_media_path(media_path)
             else:
-                return Response({'message': 'Invalid choice. Please select O or N.'})
+                return Response({'message': 'Invalid choice. Please select Overwrite or New.'})
 
         # Extract the ZIP file to the media folder
         with zipfile.ZipFile(zip_file, 'r') as zip_ref:
@@ -530,6 +528,7 @@ class UploadShapeFile(generics.GenericAPIView):
 
         return Response({'status':'success',
                         'message': f'{zip_filename} uploaded and extracted successfully.'})
+    
     
 class ViewUploadedShapeFile(APIView):
     def get(self, request):
@@ -547,7 +546,7 @@ class DeleteShapeFolder(generics.DestroyAPIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, folder_name, format=None):
-        media_path = os.path.join(settings.MEDIA_ROOT, 'ShapeFIles', folder_name)
+        media_path = os.path.join(settings.MEDIA_ROOT, 'ShapeFiles', folder_name)
         folder_name= media_path.split('\\')[-1]
         if os.path.exists(media_path):
             shutil.rmtree(media_path)
