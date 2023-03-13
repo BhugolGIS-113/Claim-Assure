@@ -73,6 +73,13 @@ class PreAuthLinkCaseNumber(models.Model):
         return self.CaseNumber
 
 
+class PreAuthEnhancement(models.Model):
+    user = models.ForeignKey(User , related_name = 'PreAuthEnhancement_User' , on_delete = models.CASCADE)
+    PreAuthID = models.ForeignKey(PreAuthDocument , related_name = 'PreAuthEnhancement_PreAuthDocument' , on_delete = models.CASCADE)
+    query = models.CharField(max_length = 255 , blank = True , null = True)
+    documents = models.FileField(upload_to = 'PreAuthDocuments/Enhancement_Documents' , blank = True , null = True)
+
+
 class ShapeFiles(models.Model):
     user = models.ForeignKey(User, related_name='shape_files', on_delete=models.CASCADE)
     folder_name = models.CharField(max_length=255, blank=True, null=True)

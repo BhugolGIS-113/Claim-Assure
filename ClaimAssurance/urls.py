@@ -8,7 +8,7 @@ from django.conf.urls.static import static
 
 schema_view = get_schema_view(
    openapi.Info(
-      title="Claim Assure API",
+      title="Claim Assure",
       default_version='v1',
       
    ),

@@ -18,10 +18,11 @@ urlpatterns = [
     re_path(r'^SearchbyPreAuthID/(?P<PreAuthID>.+)$', SearchFilterbyPreAuthID.as_view(), name='Search by PreAuth-ID'),
     re_path(r'^SearchbyCaseNumber/(?P<CaseNumber>.+)$', SearchFilterbyCaseNumber.as_view() , name = 'Search by CaseNumber'),
 
-    
-    path('UploadShapeFile', UploadShapeFile.as_view(), name=' Upload ZIP file in database'),
-    path('GetShapeFiles', ViewUploadedShapeFile.as_view(), name=' Get ZIP file'),
-    path('delete/shapeFolder/<str:folder_name>', DeleteShapeFolder.as_view()),
+    path('EnhancementPost',PreAuthEnhancementPostAPI.as_view(), name='PreAuth Enhancement POST'),
+    path('Enhancementget/<str:PreAuthID>',PreAuthEnhancementGetAPi.as_view(), name='PreAuth Enhancement GET'),
+    # path('UploadShapeFile', UploadShapeFile.as_view(), name=' Upload ZIP file in database'),
+    # path('GetShapeFiles', ViewUploadedShapeFile.as_view(), name=' Get ZIP file'),
+    # path('delete/shapeFolder/<str:folder_name>', DeleteShapeFolder.as_view()),
   
     
 

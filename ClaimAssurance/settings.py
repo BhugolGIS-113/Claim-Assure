@@ -29,10 +29,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_elasticsearch_dsl',
     'rest_framework',
     'corsheaders',
     'knox',
     'drf_yasg',
+    'search.apps.SearchConfig',
     'Authentications',
     'PreAuth',
     'ClaimManagement',
@@ -133,6 +135,14 @@ REST_KNOX = {
   'TOKEN_TTL': timedelta(hours=1),
   
 }
+# Elasticsearch
+# https://django-elasticsearch-dsl.readthedocs.io/en/latest/settings.html
+
+ELASTICSEARCH_DSL = {
+    'default': {
+        'hosts': 'localhost:9200'
+    },
+}
 
 SWAGGER_SETTINGS = {
     "SECURITY_DEFINITIONS": {
@@ -152,6 +162,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
+
 
 LANGUAGE_CODE = 'en-us'
 
@@ -178,4 +189,4 @@ MEDIA_URL = "/media/"
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-
+DATE_FORMAT = "d-m-Y"

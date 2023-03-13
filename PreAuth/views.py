@@ -227,7 +227,7 @@ class SearchFilterbyPreAuthID(generics.ListAPIView):
                          'personalInfo': serializer,
                          'PreAuthData': PreAuthDataserializer}, status=200)
 
-
+import threading
 class SearchFilterbyCaseNumber(generics.GenericAPIView):
     serializer_class = PreAuthSearchDocumentSerializer
     permission_classes = [IsAuthenticated]
@@ -252,12 +252,18 @@ class SearchFilterbyCaseNumber(generics.GenericAPIView):
             'casenumber_detail': CaseNo_Serializer,
             'persnolInfo': persnolInfo_serializer,
             'preAuth': serilaizer})
-
-
 class ExistingPreAuthFormView(generics.GenericAPIView):
     serializer_class = ExistingPreAuthDocumentSerializer
     parser_classes = [MultiPartParser]
     permission_classes = [IsAuthenticated]
+    def generate_pdf(self, image, preauth_id, field):
+        # Function to generate PDF from an image
+        pdf = PDFGenerator([image], preauth_id, field)
+        return SimpleUploadedFile(
+            f"{preauth_id}_{datetime.datetime.today().date()}_{field}.zip",
+            pdf,
+            content_type='application/zip'
+        )
 
     def post(self, request):
         serializer = ExistingPreAuthDocumentSerializer(data=request.data)
@@ -272,21 +278,17 @@ class ExistingPreAuthFormView(generics.GenericAPIView):
 
             # Extract files from request and generate PDFs
             files = {}
+            threads = []
             for field in ['justification', 'on_BedPhotograph', 'admitCaseSheet', 'labReport']:
                 images = request.FILES.getlist(field)
                 if images:
-                    for image in images:
-                        name = image.name
-                        if image.size > 400 * 1024:
-                            return Response({'status': 'error', 
-                                             'message': 'Each Image size should be less than 499 KB - {name}'.format(name=name)},
-                                            status=400)
-                    pdf = PDFGenerator(images, PreAuthID, field)
-                    files[field] = SimpleUploadedFile(
-                        f"{PreAuthID}_{datetime.datetime.today().date()}_{field}.zip",
-                        pdf,
-                        content_type='application/zip'
-                    )
+                    thread = threading.Thread(target=self.generate_pdf, args=(field, images, PreAuthID, files))
+                    thread.start()z
+                    threads.append(thread)
+
+            # Wait for all threads to complete
+            for thread in threads:
+                thread.join()
 
             radiology_files = request.FILES.getlist('Radiology')
             if radiology_files:
@@ -324,7 +326,7 @@ class ExistingPreAuthFormView(generics.GenericAPIView):
                 'radiologyReport': files.get('radiologyReport', None),
 
             })
-            if not preauth_document_serializer.is_valid(raise_exception=True):
+            if not preauth_document_serializer.is_valid():
                 key, value = list(
                     preauth_document_serializer.errors.items())[0]
                 error_message = key+" , "+value[0]
@@ -440,7 +442,9 @@ class DownloadPreAuthZipFile(APIView):
                 PreAuthID=PreAuthID).latest('date_modified')
            
         except PreAuthDocument.DoesNotExist:
-            return Response({'status': 'error', 'message': 'PreAuth ID not Found'}, status=400)
+            return Response({'status': 'error',
+                             'message': 'PreAuth ID not Found'},
+                              status=400)
 
         date = datetime.datetime.today().date()
         response = HttpResponse(content_type='application/zip')
@@ -453,14 +457,28 @@ class DownloadPreAuthZipFile(APIView):
             try:
                 if field and field.file:
                     with zipfile.ZipFile(field.file, 'r') as zip_ref:
+                        
                         for zip_info in zip_ref.infolist():
                             zip_info.filename = os.path.basename(zip_info.filename)
                             zip_file.writestr(zip_info, zip_ref.read(zip_info.filename))
             except:
                 return Response({'status': 'error',
+            
                                   'message': 'The file you are attempting to download does not exist on server'} , status=400)
           
         zip_file.close()
+
+        # Copy the zip file to the share path
+        # share_path = 'Z:\Test'
+        # zip_file_path = os.path.join(share_path)
+        # with open(zip_file_path, 'wb') as f:
+        #     print('khgsbf')
+        #     shutil.copyfileobj(response, f)
+        
+        # # Return a success response
+        # return Response({'status': 'success',
+        #                  'message': 'File downloaded and saved to share path successfully'})
+
         return response
 
 class LinkingCaseNumberView(generics.GenericAPIView):
@@ -480,6 +498,48 @@ class LinkingCaseNumberView(generics.GenericAPIView):
             error_message = key+" , "+value[0]
             return Response({'message': error_message,
                             'status': 'error'})
+
+
+class PreAuthEnhancementPostAPI(generics.GenericAPIView):
+
+    serializer_class = PreAuthEnhancementPostSerializer
+    parser_classes = [MultiPartParser]
+    permission_classes = [IsAuthenticated]
+
+    def post(self , request):
+        serializer = self.get_serializer(data = request.data)
+        if serializer.is_valid():
+            diffrenece = (datetime.datetime.today().date() - serializer.validated_data['PreAuthID'].dateOfPreAuth.date()).days
+            # print(int(diffrenece))
+            # print(serializer.validated_data['PreAuthID'].dateOfPreAuth.date())
+            if diffrenece <= 2:
+                serializer.save(user = request.user)
+                return Response({'message': 'Data Saved Successfully',
+                                'status': 'success'} , status = 200 )
+            else:
+                return Response({'message': f" Enhancemnet request time is over for PreAuthID - {serializer.validated_data['PreAuthID']} ",
+                                'status': 'error'}, status=400)
+        else:
+            key, value = list(serializer.errors.items())[0]
+            error_message = key+" , "+value[0]
+            return Response({'message': error_message,
+                            'status': 'error'} , status = 400)
+        
+
+class PreAuthEnhancementGetAPi(generics.GenericAPIView):
+    
+    serializer_class = PreAuthEnhancementGetSerializer
+    def get(self, request,PreAuthID, *args, **kwargs):
+        try:
+            data = PreAuthEnhancement.objects.filter(PreAuthID_id__PreAuthID= PreAuthID)
+        except PreAuthEnhancement.DoesNotExist:
+            return Response({'status': 'error',
+                             'message': f'No data found for PreAuthID - {PreAuthID}'}, status=400)
+        serializer = self.get_serializer( data , many = True).data
+        # print(serializer.PreAuthID)
+        return Response({'status': 'success',
+                         'message': 'Data fetch successfully',
+                        'data': serializer}, status = 200)
         
 class UploadShapeFile(generics.GenericAPIView):
     serializer_class = UploadShapeFileSerializer 
@@ -503,7 +563,7 @@ class UploadShapeFile(generics.GenericAPIView):
         zip_filename = zip_file.name
         if not zip_filename.endswith('.zip'):
             return Response({"status": "error" ,
-                             "message" : f" {zip_filename} - Uploaded File is not a zip file" })
+                             "message" : f" {zip_filename} - Uploaded File is not a zip file" }, status=400)
 
         media_path = os.path.join(settings.MEDIA_ROOT/'ShapeFiles', zip_filename[:-4])
 
@@ -515,7 +575,8 @@ class UploadShapeFile(generics.GenericAPIView):
             elif choice == 'New':
                 media_path = self.get_new_media_path(media_path)
             else:
-                return Response({'message': 'Invalid choice. Please select Overwrite or New.'})
+                return Response({'status' : 'error' ,
+                                'message': 'Invalid choice. Please select Overwrite or New.'} , status = 400)
 
         # Extract the ZIP file to the media folder
         with zipfile.ZipFile(zip_file, 'r') as zip_ref:
@@ -528,8 +589,7 @@ class UploadShapeFile(generics.GenericAPIView):
 
         return Response({'status':'success',
                         'message': f'{zip_filename} uploaded and extracted successfully.'})
-    
-    
+
 class ViewUploadedShapeFile(APIView):
     def get(self, request):
         try:

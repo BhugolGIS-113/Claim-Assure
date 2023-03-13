@@ -126,6 +126,19 @@ class PreAuthLinkCaseNumberSerialzier(serializers.ModelSerializer):
         model = PreAuthLinkCaseNumber
         fields = '__all__'
 
+
+class PreAuthEnhancementPostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PreAuthEnhancement
+        fields = ('PreAuthID' , 'query' , 'documents')
+        depth = 0
+
+class PreAuthEnhancementGetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PreAuthEnhancement
+        fields = ('query' , 'documents')
+
+
 class UploadShapeFileSerializer(serializers.Serializer):
     shape_file = serializers.FileField(required = True)
     choice = serializers.CharField(max_length=50 , required = True)
